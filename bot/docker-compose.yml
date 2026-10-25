@@ -1,0 +1,83 @@
+services:
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: moxa-evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_TYPE=http
+      - SERVER_PORT=8080
+      - SERVER_URL=http://localhost:8080
+      - CORS_ORIGIN=*
+      - CORS_METHODS=POST,GET,PUT,DELETE
+      - CORS_CREDENTIALS=true
+      - LOG_LEVEL=ERROR,WARN,INFO
+      - LOG_COLOR=true
+      - DEL_INSTANCE=false
+      - LANGUAGE=es
+      # Auth
+      - AUTHENTICATION_API_KEY=moxa-demo-key-change-me
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      # Database (PostgreSQL — obligatorio desde v2.3+)
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:evolution@postgres:5432/evolution?schema=public
+      - DATABASE_CONNECTION_CLIENT_NAME=moxa
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=false
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - DATABASE_SAVE_DATA_LABELS=false
+      - DATABASE_SAVE_DATA_HISTORIC=false
+      # Redis cache
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/0
+      - CACHE_REDIS_PREFIX_KEY=moxa
+      - CACHE_LOCAL_ENABLED=false
+      # QR
+      - QRCODE_LIMIT=30
+      - QRCODE_COLOR=#000000
+      # Webhook global desactivado — se configura por instancia
+      - WEBHOOK_GLOBAL_ENABLED=false
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: moxa-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=evolution
+      - POSTGRES_DB=evolution
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution -d evolution"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: moxa-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  evolution_instances:
+  postgres_data:
+  redis_data:
